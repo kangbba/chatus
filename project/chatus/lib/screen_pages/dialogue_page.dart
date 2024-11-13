@@ -40,8 +40,8 @@ class _AudiencePageState extends State<DialoguePage> {
   void initState() {
     super.initState();
     translateByGoogleServer.initializeTranslateByGoogleServer();
-    initializeDialogues();
     initializeLanguages();
+    initializeDialogues(_languageSelectControl.myLanguageItem);
   }
 
   // Languages
@@ -58,9 +58,7 @@ class _AudiencePageState extends State<DialoguePage> {
   void listenToLanguageChanges() {
     _languageSubscription = _languageSelectControl.languageItemStream.listen((languageItem) async {
       curLangItem = languageItem;
-      setState(() {
-        translatedDialogues.clear(); // 언어 변경 시 기존 번역 내용 초기화
-      });
+      translatedDialogues.clear(); // 언어 변경 시 기존 번역 내용 초기화
       await translateAllDialogues(languageItem.langCodeGoogleServer); // 전체 번역 수행
       setState(() {});
     });
@@ -71,15 +69,14 @@ class _AudiencePageState extends State<DialoguePage> {
   }
 
   // Dialogues
-  Future<void> initializeDialogues() async {
+  Future<void> initializeDialogues(LanguageItem? initialLanguageItem) async {
     try {
       dialogues = await widget.chatRoom.dialoguesStream().first;
       sortDialoguesByCreatedAt(dialogues);
-      setState(() {
-        isLoading = false;
-      });
-      await translateAllDialogues(curLangItem?.langCodeGoogleServer);
+      isLoading = false;
+      await translateAllDialogues(initialLanguageItem?.langCodeGoogleServer);
       listenToDialogueStream();
+      setState(() {});
 
     } catch (e) {
       debugPrint("AudiencePage: Error loading initial dialogues - $e");
