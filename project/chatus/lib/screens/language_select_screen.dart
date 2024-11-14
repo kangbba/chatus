@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:chatus/custom_widget/sayne_separator.dart';
+import 'package:chatus/custom_widget/simple_separator.dart';
 
 import '../classes/language_select_control.dart';
 

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:chatus/helper/statics.dart';
 import 'package:chatus/classes/user_model.dart';
 import '../classes/chat_room.dart';
 

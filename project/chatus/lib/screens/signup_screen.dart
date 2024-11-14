@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
+import 'package:chatus/custom_widget/simple_dialog.dart';
 
 class SignupScreen extends StatefulWidget {
   @override

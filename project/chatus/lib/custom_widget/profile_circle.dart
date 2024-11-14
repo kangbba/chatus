@@ -1,6 +1,5 @@
 
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:chatus/classes/user_model.dart';
 

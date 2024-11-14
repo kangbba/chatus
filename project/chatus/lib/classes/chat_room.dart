@@ -5,7 +5,7 @@ import 'package:chatus/classes/dialogue.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
+import 'package:chatus/custom_widget/simple_dialog.dart';
 import 'package:chatus/classes/user_model.dart';
 
 import '../exceptions/chat_room_exception.dart';

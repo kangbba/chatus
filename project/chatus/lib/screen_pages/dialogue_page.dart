@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:chatus/classes/room_settings.dart';
-import 'package:chatus/custom_widget/sayne_separator.dart';
+import 'package:chatus/custom_widget/simple_separator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
@@ -40,7 +40,7 @@ class _AudiencePageState extends State<DialoguePage> {
 
   StreamSubscription<List<Dialogue>>? _dialogueSubscription;
   StreamSubscription<LanguageItem>? _languageSubscription;
-  LanguageItem? curLangItem;
+  late LanguageItem curLangItem;
 
   @override
   void initState() {
@@ -115,19 +115,22 @@ class _AudiencePageState extends State<DialoguePage> {
         final newDialogues = dialogueList.where((d) => !currentIds.contains(d.id)).toList();
 
         if (newDialogues.isNotEmpty) {
-          String? curLangCode = curLangItem?.langCodeGoogleServer;
           sortDialoguesByCreatedAt(newDialogues);
           dialogues.addAll(newDialogues);
           debugPrint("AudiencePage: New dialogues received, count: ${newDialogues.length}");
 
           String lastTranslation = '';
           for (var dialogue in newDialogues) {
-            lastTranslation = await translateDialogue(dialogue, curLangCode!);
+            lastTranslation = await translateDialogue(dialogue, curLangItem!.langCodeGoogleServer!);
           }
+          setState(() {
+
+          });
           scrollToEnd(1000);
           if (lastTranslation.isNotEmpty) {
             debugPrint("tts to speak : $lastTranslation");
             bool isMyDialogue = newDialogues.last.ownerUid == authProvider.curUserModel?.uid;
+            await tts.setLanguage(curLangItem.ttsLangCode);
             await tts.setVolume(isMyDialogue ? RoomSettings().myVolume : RoomSettings().otherVolume);
             tts.speak(lastTranslation);
           }
@@ -167,6 +170,9 @@ class _AudiencePageState extends State<DialoguePage> {
 
   Future<void> translateAllDialogues(String? targetLangCode) async {
     if (targetLangCode == null) return;
+    if (dialogues.isEmpty){
+      return;
+    }
     for (var dialogue in dialogues) {
       await translateDialogue(dialogue, targetLangCode);
     }
@@ -174,11 +180,20 @@ class _AudiencePageState extends State<DialoguePage> {
 
   @override
   Widget build(BuildContext context) {
+
+    if (isLoading) {
+      return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text("대화를 번역하는 중입니다."),
+              SizedBox(height: 16),
+              CircularProgressIndicator(),
+            ],
+      ));
+    }
     return Scaffold(
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () => scrollToEnd(100),
-      //   child: const Icon(Icons.arrow_downward),
-      // ),
       body: Column(
         children: [
           Expanded(
@@ -206,6 +221,8 @@ class _AudiencePageState extends State<DialoguePage> {
                         userModel: userModel,
                         text: translatedText,
                         date: formattedDate,
+                        onTap: () => showDialogueDetails(context, userModel, dialogue), // 팝업 호출
+
                       );
                     }
                     return const SizedBox.shrink(); // 사용자 정보가 완전히 없을 때는 빈 위젯 반환
@@ -234,6 +251,65 @@ class _AudiencePageState extends State<DialoguePage> {
   }
   //
 
+
+  void showDialogueDetails(BuildContext context, UserModel userModel, Dialogue dialogue) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15.0),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5, // 화면의 절반 크기 설정
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Original Sentences:",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Divider(thickness: 1.0),
+                Expanded(
+                  flex: 2,
+                  child: SingleChildScrollView(
+                    child: Text(
+                      dialogue.content,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ),
+                const Divider(thickness: 1.0),
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: const Text("Speaker", style: TextStyle(fontSize: 12),),
+                  subtitle: Text(
+                    userModel.displayName.isNotEmpty ? userModel.displayName : userModel.uid, style: TextStyle(fontSize: 10),),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: const Text("Original Language", style: TextStyle(fontSize: 12),),
+                  subtitle: Text(dialogue.langCode, style: TextStyle(fontSize: 10),),
+                ),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: TextButton(
+                    child: const Text("Close", style: TextStyle(fontSize: 16),),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
 
   Widget languageSelectScreenBtn() {

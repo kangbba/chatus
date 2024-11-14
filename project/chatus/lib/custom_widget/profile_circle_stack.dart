@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:chatus/custom_widget/profile_circle.dart';
 

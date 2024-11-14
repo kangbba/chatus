@@ -8,10 +8,10 @@
 // import 'package:provider/provider.dart';
 // import 'package:simple_ripple_animation/simple_ripple_animation.dart';
 // import 'package:chatus/managers/text_to_speech_control.dart';
-// import 'package:chatus/custom_widget/sayne_separator.dart';
+// import 'package:chatus/custom_widget/simple_separator.dart';
 // import 'package:chatus/screen_pages/presenter_page.dart';
 //
-// import '../custom_widget/sayne_dialogs.dart';
+// import '../custom_widget/simple_dialog.dart';
 // import '../managers/my_auth_provider.dart';
 // import '../managers/chat_provider.dart';
 // import '../managers/speech_to_text_control.dart';

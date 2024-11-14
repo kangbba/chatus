@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:chatus/classes/user_model.dart';
-import 'package:chatus/custom_widget/sayne_separator.dart';
+import 'package:chatus/custom_widget/simple_separator.dart';
 import 'package:chatus/custom_widget/profile_circle.dart';
 import 'package:chatus/screens/title_input_screen.dart';
 import '../managers/my_auth_provider.dart';

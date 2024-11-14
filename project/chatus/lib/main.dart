@@ -5,16 +5,18 @@ import 'package:firebase_core/firebase_core.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
       options: FirebaseOptions(
-        apiKey: FirebaseApiKey,
-        appId: FirebaseAppId,
-        messagingSenderId: FirebaseMessagingSenderId,
-        projectId: FirebaseProjectId,
+        apiKey: firebaseApiKey,
+        appId: firebaseAppId,
+        messagingSenderId: firebaseMessagingSenderId,
+        projectId: firebaseProjectId,
       )
   );
-  runApp(MyApp(),
-  );
+
+
+  runApp(MyApp(),);
 }
 
 class MyApp extends StatelessWidget {

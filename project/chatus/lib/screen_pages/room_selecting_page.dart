@@ -9,7 +9,7 @@ import 'package:chatus/managers/chat_provider.dart';
 import '../classes/chat_room.dart';
 import '../classes/user_model.dart';
 import '../custom_widget/profile_circle.dart';
-import '../testing/profile_circle_stack.dart';
+import '../custom_widget/profile_circle_stack.dart';
 import '../screens/room_screen.dart';
 
 class RoomSelectingPage extends StatefulWidget {

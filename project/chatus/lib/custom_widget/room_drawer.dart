@@ -1,10 +1,9 @@
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
 import 'package:chatus/custom_widget/user_list.dart';
 import 'package:chatus/managers/my_auth_provider.dart';
 import 'package:flutter/material.dart';
 import '../classes/room_settings.dart';
 import '../classes/chat_room.dart';
-import '../custom_widget/sayne_separator.dart';
+import '../custom_widget/simple_separator.dart';
 
 class RoomDrawer extends StatefulWidget {
   final ChatRoom chatRoom;

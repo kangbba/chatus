@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
-import 'package:chatus/helper/colors.dart';
+import 'package:chatus/custom_widget/simple_dialog.dart';
 import 'package:chatus/managers/network_checking_service.dart';
 import 'package:chatus/screen_pages/room_selecting_page.dart';
 
@@ -160,6 +159,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin{
       ),
     );
   }
+
 
   void onPressedCreateChatRoomBtn() async{
     bool networkAvailable = await networkCheckingService.isInternetConnectionAvailable();

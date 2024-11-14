@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:chatus/helper/colors.dart';
 
 import '../managers/my_auth_provider.dart';
-import '../custom_widget/sayne_dialogs.dart';
+import '../custom_widget/simple_dialog.dart';
 
 class ChangingNicknameScreen extends StatefulWidget {
   const ChangingNicknameScreen({Key? key}) : super(key: key);

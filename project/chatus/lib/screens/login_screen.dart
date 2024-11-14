@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:chatus/managers/my_auth_provider.dart';
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
+import 'package:chatus/custom_widget/simple_dialog.dart';
 import 'package:chatus/screens/changing_nickname_screen.dart';
 import 'package:chatus/screens/room_screen.dart';
 import 'package:chatus/screens/main_screen.dart';

@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'package:google_cloud_translation/google_cloud_translation.dart';
-
 import '../secrets/secret_keys.dart';
 
 class TranslateByGoogleServer {
   late Translation _translation;
 
   initializeTranslateByGoogleServer() {
-    _translation = Translation(apiKey: GoogleTranslationApiKey);
+    _translation = Translation(apiKey: googleTranslationApiKey);
   }
 
   Future<String?> textTranslate(String inputStr, String to) async {

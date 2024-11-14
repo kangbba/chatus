@@ -6,7 +6,7 @@
 // import 'package:simple_ripple_animation/simple_ripple_animation.dart';
 // import 'package:chatus/managers/speech_to_text_control.dart';
 // import 'package:chatus/managers/my_auth_provider.dart';
-// import 'package:chatus/custom_widget/sayne_dialogs.dart';
+// import 'package:chatus/custom_widget/simple_dialog.dart';
 // import '../managers/text_to_speech_control.dart';
 // import '../classes/chat_room.dart';
 // import '../classes/language_select_control.dart';

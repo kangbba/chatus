@@ -2,15 +2,10 @@ import 'dart:async';
 import 'package:chatus/custom_widget/room_drawer.dart';
 import 'package:chatus/screen_pages/dialogue_page.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../classes/chat_room.dart';
-import '../classes/language_select_control.dart';
 import '../classes/user_model.dart';
 import '../classes/room_settings.dart';
-import '../custom_widget/sayne_separator.dart';
-import '../custom_widget/user_list.dart';
 import '../managers/my_auth_provider.dart';
-import 'language_select_screen.dart';
 
 class RoomScreen extends StatefulWidget {
   final ChatRoom chatRoomToLoad;

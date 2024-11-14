@@ -1,5 +1,4 @@
 import 'package:chatus/custom_widget/profile_circle.dart';
-import 'package:chatus/custom_widget/sayne_separator.dart';
 import 'package:chatus/managers/my_auth_provider.dart';
 import 'package:flutter/material.dart';
 import '../classes/user_model.dart';

@@ -7,7 +7,7 @@ import '../classes/user_model.dart';
 import '../custom_widget/profile_circle.dart';
 
 class RoomDisplayer extends StatefulWidget {
-  const RoomDisplayer({required this.chatRoom, Key? key}) : super(key: key);
+  const RoomDisplayer({required this.chatRoom, super.key});
 
   final ChatRoom chatRoom;
 
@@ -25,13 +25,13 @@ class _RoomDisplayerState extends State<RoomDisplayer> {
   @override
   Widget build(BuildContext context) {
     if(_authProvider.curUser == null){
-      return Container(child: Text("로그인 필요"));
+      return const Text("Login is required");
     }
     return MultiProvider(
       providers: [
         StreamProvider<List<UserModel>>(
           create: (_) => widget.chatRoom.userModelsStream,
-          initialData: [],
+          initialData: const [],
         ),
       ],
       child: Consumer<List<UserModel>>(
@@ -79,22 +79,22 @@ class _RoomDisplayerState extends State<RoomDisplayer> {
               leading: ProfileCircle(userModel: userModel, radius: 20,),
               title:  Text((isUndefined ? uid : displayName) + (isMe ? " (나)" : ""), style: TextStyle(fontSize: isUndefined ? 12 : 16),),
               subtitle: Text(isUndefined ? '익명' : email),
-              trailing: isHost ? Text("호스트") : null,
+              trailing: isHost ? const Text("호스트") : null,
             );
   }
   void showContextMenu(BuildContext context, UserModel user, bool useManagementFunction) {
-    final RenderBox overlay = Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
     final List<PopupMenuEntry<String>> menuItems = [
       if (useManagementFunction)
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'setHost',
-          child: Text('발표자 위임하기'),
+          child: Text('발표자 위임'),
         ),
 
-      PopupMenuItem<String>(
+      const PopupMenuItem<String>(
         value: 'whisper',
-        child: const Text('귓속말'),
+        child: Text('귓속말'),
       ),
     ];
 
