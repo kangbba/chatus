@@ -6,9 +6,7 @@ import '../screens/language_select_screen.dart';
 
 
 class LanguageSelectScreenButton extends StatefulWidget {
-  final bool isHost;
-
-  LanguageSelectScreenButton({required this.isHost});
+  const LanguageSelectScreenButton({super.key, });
 
   @override
   State<LanguageSelectScreenButton> createState() => _LanguageSelectScreenButtonState();
@@ -25,7 +23,6 @@ class _LanguageSelectScreenButtonState extends State<LanguageSelectScreenButton>
             onTap: () {
               late LanguageSelectScreen myLanguageSelectScreen =
               LanguageSelectScreen(
-                isHost: widget.isHost,
                 languageSelectControl: languageSelectControl,
               );
               showDialog(

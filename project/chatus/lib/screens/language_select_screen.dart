@@ -5,11 +5,9 @@ import 'package:chatus/custom_widget/sayne_separator.dart';
 import '../classes/language_select_control.dart';
 
 class LanguageSelectScreen extends StatefulWidget {
-  final bool isHost;
   final LanguageSelectControl languageSelectControl;
 
   const LanguageSelectScreen({
-    required this.isHost,
     required this.languageSelectControl,
     Key? key,
   }) : super(key: key);
@@ -21,7 +19,6 @@ class LanguageSelectScreen extends StatefulWidget {
 
 class _LanguageSelectScreenState extends State<LanguageSelectScreen> {
   // TODO: 기본함수
-  late bool isHost = widget.isHost;
   late List<LanguageItem> languageDataList = widget.languageSelectControl.languageDataList;
   late final List<Widget> _languageListTiles = [];
 

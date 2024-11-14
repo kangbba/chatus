@@ -1,251 +1,179 @@
-
+import 'dart:async';
+import 'package:chatus/screen_pages/dialogue_page.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:chatus/helper/colors.dart';
-import 'package:chatus/custom_widget/sayne_dialogs.dart';
-import 'package:chatus/testing/presenter_page.dart';
-import 'package:chatus/custom_widget/profile_circle.dart';
-import 'package:chatus/custom_widget/user_speakspeed_slider.dart';
-
-import '../testing/text_to_speech_control.dart';
-import '../managers/my_auth_provider.dart';
-import '../managers/chat_provider.dart';
 import '../classes/chat_room.dart';
 import '../classes/language_select_control.dart';
 import '../classes/user_model.dart';
+import '../classes/room_settings.dart';
 import '../custom_widget/sayne_separator.dart';
-import '../screen_pages/language_select_screen_btn.dart';
+import '../managers/my_auth_provider.dart';
 import 'language_select_screen.dart';
-import '../screen_pages/dialogue_page.dart';
-import '../screen_pages/room_displayer.dart';
+
 class RoomScreen extends StatefulWidget {
+  final ChatRoom chatRoomToLoad;
+
   RoomScreen({Key? key, required this.chatRoomToLoad}) : super(key: key);
-  ChatRoom chatRoomToLoad;
+
   @override
   State<RoomScreen> createState() => _RoomScreenState();
 }
 
 class _RoomScreenState extends State<RoomScreen> {
-  final _authProvider = MyAuthProvider.instance;
-  final _chatProvider = ChatProvider.instance;
-  final LanguageSelectControl _languageSelectControl = LanguageSelectControl.instance;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  double _presenterSpeakIdleLimit = 2000;
-
   ChatRoom? chatRoom;
-  bool isRoomDisplayerOpen = false;
-  Stream<UserModel>? _hostStream;
-
-  @override
-  void deactivate() {
-    // 작업 수행
-    // 다른 위젯이 현재 위젯을 덮을 때
-    // 전체 화면 다이얼로그 또는 알림이 표시될 때
-    // 앱이 백그라운드로 이동할 때
-    // 다른 위젯으로 전환되거나 앱이 종료될 때
-    print("앱이 비활성화됨");
-    super.deactivate();
-  }
-  initializeChatRoom() async {
-    UserModel userModel = UserModel.fromFirebaseUser(_authProvider.curUser!);
-
-    //참가 처리
-    final isJoined = await widget.chatRoomToLoad.joinRoom(userModel);
-    simpleToast("방 로드 ${isJoined ? "성공" : "실패"}");
-    chatRoom = isJoined ? widget.chatRoomToLoad : null;
-    setState(() {
-
-    });
-    // chatRoom이 null이면 이전 화면으로 돌아갑니다.
-    if (chatRoom == null) {
-        await sayneConfirmDialog(context, "" , "방 로드 실패");
-       Navigator.pop(context);
-    }
-    else{
-      _hostStream = chatRoom!.hostStream();
-    }
-
-    setState(() {
-
-    });
-
-  }
+  final MyAuthProvider authProvider = MyAuthProvider.instance;
+  StreamSubscription<List<UserModel>>? _userModelsSubscription;
+  List<UserModel> userModels = [];
+  double myVolume = RoomSettings().myVolume;
+  double otherVolume = RoomSettings().otherVolume;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     initializeChatRoom();
+    listenToUserModels();
   }
+
+  // 채팅방 초기화
+  Future<void> initializeChatRoom() async {
+    final userModel = authProvider.curUserModel;
+    if (userModel != null) {
+      final isJoined = await widget.chatRoomToLoad.joinRoom(userModel);
+      if (isJoined) {
+        setState(() {
+          chatRoom = widget.chatRoomToLoad;
+        });
+      } else {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  // 멤버 리스트 스트림 구독
+  void listenToUserModels() {
+    _userModelsSubscription = widget.chatRoomToLoad.userModelsStream.listen((updatedUserModels) {
+      setState(() {
+        userModels = updatedUserModels;
+      });
+    });
+  }
+
   @override
   void dispose() {
-    // TODO: implement dispose
+    _userModelsSubscription?.cancel();
     super.dispose();
   }
+
+  // 나가기 버튼 기능
+  Future<void> exitRoom() async {
+    if (authProvider.curUserModel != null) {
+      await chatRoom?.exitRoom(authProvider.curUserModel!);
+      Navigator.pop(context);
+    }
+  }
+
+  // Drawer가 닫힐 때 RoomSettings에 볼륨 값을 저장
+  void saveVolumeSettings() {
+    RoomSettings().myVolume = myVolume;
+    RoomSettings().otherVolume = otherVolume;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (chatRoom == null) {
-      return loading("Loading..");
-    }
-    if( _authProvider.curUserModel == null){
-      return loading("로그인 필요");
-    }
-    return MultiProvider(
-      providers: [
-        StreamProvider<List<UserModel>>(
-          create: (_) => chatRoom!.userModelsStream,
-          initialData: [],
+    return Scaffold(
+      key : _scaffoldKey,
+      appBar: AppBar(
+        title: StreamBuilder<List<UserModel>>(
+          stream: chatRoom?.userModelsStream,
+          builder: (context, snapshot) {
+            final memberCount = snapshot.data?.length ?? 0;
+            return Text("${chatRoom?.name ?? 'Loading...'} ($memberCount)");
+          },
         ),
-        StreamProvider<UserModel>(
-          create: (_) => _hostStream,
-          initialData: chatRoom!.host,
-        ),
-        ListenableProvider<LanguageSelectControl>(
-          create: (_) => _languageSelectControl,
-        ),
-      ],
-      child: Consumer2<List<UserModel>, UserModel>(
-        builder: (_, userModelsSnapshot, hostUserModel, __) {
-          if (userModelsSnapshot.isEmpty) {
-            return Scaffold(
-              appBar: AppBar(
-                backgroundColor: ColorManager.color_standard,
-                title: Text(chatRoom!.name),
-              ),
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-          UserModel curUserModel = _authProvider.curUserModel!;
-          final isCurUserHost = hostUserModel.uid == curUserModel.uid;
-
-          return WillPopScope(
-            onWillPop: () async {
-              if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
-                Navigator.of(context).pop();
-                return false;
-              } else {
-                return true;
-              }
-            },
-            child: Scaffold(
-              key: _scaffoldKey,
-              appBar: AppBar(
-                backgroundColor: ColorManager.color_standard,
-                title: StreamBuilder<List<UserModel>>(
-                  stream: chatRoom?.userModelsStream, // 실시간으로 멤버 변화를 감지
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      // 로딩 중일 때 표시할 텍스트
-                      return Text("${chatRoom?.name} (...)");
-                    } else if (snapshot.hasError) {
-                      // 오류 발생 시 표시할 텍스트
-                      return Text("${chatRoom?.name} (..)");
-                    } else {
-                      // 멤버 수를 정상적으로 가져왔을 때
-                      final memberCount = snapshot.data?.length ?? 0;
-                      return Text("${chatRoom?.name} ($memberCount)");
-                    }
-                  },
-                ),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => onBackPressed(context),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () {
-                      _scaffoldKey.currentState?.openEndDrawer();
-                    },
-                  ),
-                ],
-              ),
-
-              endDrawer: roomDrawer(context, isCurUserHost),
-              body: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 80,
-                      child: Column(
-                        children:
-                        [
-                          const SimpleSeparator(color: Colors.black54, height: 0.3, top: 0, bottom: 0),
-                        ],
-                      ),
-                    ),
-
-                    Expanded(
-                      child: Container(
-                        child : DialoguePage(chatRoom: chatRoom!)
-                      )
-                    ),
-
-                    const SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 16),
-                    SizedBox(
-                      height: 60,
-                      child: LanguageSelectScreenButton(isHost: isCurUserHost,),
-                    )
-                  ],
-                ),
-              ),
+        actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: Icon(Icons.menu),
+              onPressed: () {
+                Scaffold.of(context).openEndDrawer();
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
+      endDrawer: roomDrawer(),
+      body: chatRoom == null
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+            children: [
+              Expanded(child: DialoguePage(chatRoom: widget.chatRoomToLoad)),
+              SizedBox(
+                  height : 100 , child: languageSelectScreenBtn())
+            ],
+          ),
     );
   }
-  Widget roomDrawer(BuildContext context, bool isHost) {
+
+  // Drawer 위젯 생성
+  Widget roomDrawer() {
     return SafeArea(
       child: Drawer(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: <Widget>[
-                    // 스크롤 가능한 리스트뷰 내용
-                    SimpleSeparator(color: Colors.black, height: 0, top: 8, bottom: 8),
-                    Text(chatRoom!.name, style: TextStyle(fontSize: 16),),
-                    SimpleSeparator(color: Colors.black, height: 0.2, top: 8, bottom: 22),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(children: const [
-                        Icon(Icons.people, color: Colors.black45,),
-                        Text(" 참여자" ,style: TextStyle(fontSize: 15),
-                        )]
-                      ),
-                    ),
-                    SizedBox(height: 8,),
-                    RoomDisplayer(chatRoom: chatRoom!),
-                    SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 8),
-                    // ...
-                  ],
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(chatRoom?.name ?? '', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
-              ),
+                const SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 8),
+                // 멤버 표시 영역
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(children: [
+                    Icon(Icons.people, color: Colors.black45),
+                    SizedBox(width: 8),
+                    Text("참여자 목록", style: TextStyle(fontSize: 16)),
+                  ]),
+                ),
+                SizedBox(height: 10),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: userModels.length,
+                    itemBuilder: (context, index) {
+                      final user = userModels[index];
+                      return ListTile(
+                        leading: Icon(Icons.person),
+                        title: Text(user.displayName ?? "Unknown"),
+                      );
+                    },
+                  ),
+                ),
+                const SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 8),
+                // 슬라이더
+                volumeSlider("나의 소리 볼륨", myVolume, (value) {
+                  setState(() {
+                    myVolume = value;
+                  });
+                }),
+                volumeSlider("상대 소리 볼륨", otherVolume, (value) {
+                  setState(() {
+                    otherVolume = value;
+                  });
+                }),
+              ],
             ),
-            // 고정된 ListTile
-            isHost ?
-            UserSpeakSpeedSlider(
-              presenterSpeakIdleLimit: _presenterSpeakIdleLimit,
-              onChanged: (double value) {
-                setState(() {
-                  _presenterSpeakIdleLimit = value;
-                });
-              },
-            ) : Container(),
+            // 나가기 버튼
             ListTile(
               tileColor: Colors.black12,
-              leading: const Icon(Icons.exit_to_app),
-              title: const Text("Exit Classroom"),
-              onTap: () => _onPressedExitRoom(context),
+              leading: Icon(Icons.exit_to_app),
+              title: Text("Exit Room"),
+              onTap: () {
+                saveVolumeSettings();
+                exitRoom();
+              },
             ),
           ],
         ),
@@ -253,87 +181,72 @@ class _RoomScreenState extends State<RoomScreen> {
     );
   }
 
-
-  void onBackPressed(BuildContext context){
-    Navigator.pop(context);
-
-  }
-  Scaffold loading(String str) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(''),
-        backgroundColor: ColorManager.color_standard,
-      ),
-
-      body: Center(
-        child: Text(str),
-      ),
-    );
-  }
-
-
-  _onPressedExitRoom(BuildContext context) async{
-    if(_authProvider.curUserModel == null){
-      simpleToast("curUserModel null");
-      return;
-    }
-    bool? confirmation = await sayneAskDialog(context, "", "이 채팅방에서 나가시겠습니까?");
-    UserModel user = _authProvider.curUserModel!;
-    if(confirmation == true){
-      await chatRoom!.exitRoom(user);
-      if(mounted) {
-        onBackPressed(context);
-      }
-    }
-  }
-
-  Widget languageSelectScreenBtn(bool isHost) {
-    return Consumer<LanguageSelectControl>(
-      builder: (context, languageSelectControl, child) {
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: InkWell(
-            onTap: () {
-              late LanguageSelectScreen myLanguageSelectScreen =
-              LanguageSelectScreen(
-                isHost: isHost,
-                languageSelectControl: languageSelectControl,
+  Widget languageSelectScreenBtn() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        onTap: () async {
+          late LanguageSelectScreen myLanguageSelectScreen =
+          LanguageSelectScreen(
+            languageSelectControl: LanguageSelectControl.instance,
+          );
+          await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                ),
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: myLanguageSelectScreen,
+                ),
               );
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return Dialog(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                    child: Padding(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: myLanguageSelectScreen,
-                    ),
-                  );
-                },
-              );
-              setState(() {
-
-              });
             },
-            child: SizedBox(
-              height: 60,
-              child: Column(
-                children: [
-                  Text("   ${languageSelectControl.myLanguageItem.menuDisplayStr} 으로 ${isHost ? '발표 하는 중' : '보는중'}"),
-                  SizedBox(height: 8,),
-                  Text( "   번역 언어 변경하기   ", textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
-                  ),
-                ],
+          );
+          setState(() {
+
+          });
+        },
+        child: SizedBox(
+          height: 60,
+          child: Column(
+            children: [
+              Text("   ${ LanguageSelectControl.instance.myLanguageItem.menuDisplayStr}"),
+              SizedBox(height: 8,),
+              Text( "   언어 변경하기   ", textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.black87),
               ),
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+  // 슬라이더 생성 함수
+  Widget volumeSlider(String title, double currentValue, ValueChanged<double> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 14)),
+          Slider(
+            value: currentValue,
+            min: 0.0,
+            max: 1.0,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 
+  // Drawer가 닫힐 때 RoomSettings에 볼륨 값을 저장
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    saveVolumeSettings();
+  }
 }

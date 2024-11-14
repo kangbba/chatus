@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:simple_ripple_animation/simple_ripple_animation.dart';
@@ -21,9 +22,10 @@ class DialoguePage extends StatefulWidget {
 }
 
 class _AudiencePageState extends State<DialoguePage> {
-  final MyAuthProvider _authProvider = MyAuthProvider.instance;
-  final LanguageSelectControl _languageSelectControl = LanguageSelectControl.instance;
-  final TranslateByGoogleServer translateByGoogleServer = TranslateByGoogleServer();
+  final MyAuthProvider authProvider = MyAuthProvider.instance;
+  final LanguageSelectControl languageSelectControl = LanguageSelectControl.instance;
+  final TranslateByGoogleServer googleTranslator = TranslateByGoogleServer();
+  final FlutterTts tts = FlutterTts();
 
   StreamSubscription<List<Dialogue>>? _dialogueSubscription;
   Map<String, Map<String, String>> translatedDialogues = {}; // 번역된 텍스트와 언어 코드 저장
@@ -39,26 +41,28 @@ class _AudiencePageState extends State<DialoguePage> {
   @override
   void initState() {
     super.initState();
-    translateByGoogleServer.initializeTranslateByGoogleServer();
+    googleTranslator.initializeTranslateByGoogleServer();
     initializeLanguages();
-    initializeDialogues(_languageSelectControl.myLanguageItem);
+    initializeDialogues(languageSelectControl.myLanguageItem);
   }
 
   // Languages
   Future<void> initializeLanguages() async {
     try {
-      curLangItem = _languageSelectControl.myLanguageItem;
+      curLangItem = languageSelectControl.myLanguageItem;
     } catch (e) {
       debugPrint("AudiencePage: Error loading initializeLanguages - $e");
     }
+    tts.setLanguage(languageSelectControl.myLanguageItem.ttsLangCode);
     setState(() {});
     listenToLanguageChanges();
   }
 
   void listenToLanguageChanges() {
-    _languageSubscription = _languageSelectControl.languageItemStream.listen((languageItem) async {
+    _languageSubscription = languageSelectControl.languageItemStream.listen((languageItem) async {
       curLangItem = languageItem;
       translatedDialogues.clear(); // 언어 변경 시 기존 번역 내용 초기화
+      tts.setLanguage(languageItem.ttsLangCode);
       await translateAllDialogues(languageItem.langCodeGoogleServer); // 전체 번역 수행
       setState(() {});
     });
@@ -92,11 +96,17 @@ class _AudiencePageState extends State<DialoguePage> {
             final newDialogues = dialogueList.where((d) => !currentIds.contains(d.id)).toList();
 
             if (newDialogues.isNotEmpty) {
+              String? curLangCode = curLangItem?.langCodeGoogleServer;
               sortDialoguesByCreatedAt(newDialogues);
               dialogues.addAll(newDialogues);
               debugPrint("AudiencePage: New dialogues received, count: ${newDialogues.length}");
-              await translateNewDialogues(newDialogues, curLangItem?.langCodeGoogleServer);
+              String lastTranslation = await translateNewDialogues(newDialogues, curLangCode);
               setState(() {});
+
+              if(lastTranslation.isNotEmpty){
+                debugPrint("tts to speak : ${lastTranslation}");
+                tts.speak(lastTranslation);
+              }
             }
       },
       onError: (error) {
@@ -109,37 +119,43 @@ class _AudiencePageState extends State<DialoguePage> {
   }
 
   // 개별 대화 번역 수행
-  Future<void> translateDialogue(Dialogue dialogue, String targetLangCode) async {
+  Future<String> translateDialogue(Dialogue dialogue, String targetLangCode) async {
     final translatedData = translatedDialogues[dialogue.id];
 
     // 이미 해당 언어로 번역이 되어 있는 경우 스킵
     if (translatedData != null && translatedData['langCode'] == targetLangCode) {
-      return;
+      return dialogue.content;
     }
 
     try {
-      final translation = await translateByGoogleServer.textTranslate(dialogue.content, targetLangCode);
+      final translation = await googleTranslator.textTranslate(dialogue.content, targetLangCode);
       translatedDialogues[dialogue.id] = {
         'text': translation ?? dialogue.content,
         'langCode': targetLangCode
       };
+      return translation ?? '';
+
     } catch (e) {
       debugPrint("Translation error for '${dialogue.content}': $e");
       translatedDialogues[dialogue.id] = {
         'text': dialogue.content,
         'langCode': dialogue.langCode // 번역 실패 시 원본 유지
       };
+
+      return dialogue.content;
     }
   }
 
   // 새로 추가된 대화만 번역 수행
-  Future<void> translateNewDialogues(List<Dialogue> newDialogues, String? targetLangCode) async {
-    if (targetLangCode == null) return;
+  Future<String> translateNewDialogues(List<Dialogue> newDialogues, String? targetLangCode) async {
+    if (targetLangCode == null) return '';
 
     debugPrint("Translation request count: ${newDialogues.length}");
+    String lastTranslation = '';
     for (var dialogue in newDialogues) {
-      await translateDialogue(dialogue, targetLangCode);
+      lastTranslation = await translateDialogue(dialogue, targetLangCode);
     }
+    return lastTranslation;
   }
 
   // 전체 대화 번역 수행
@@ -193,7 +209,7 @@ class _AudiencePageState extends State<DialoguePage> {
 
                   final userModel = snapshot.data!;
                   return DialogueTile(
-                    isMine: dialogue.ownerUid == _authProvider.curUserModel?.uid,
+                    isMine: dialogue.ownerUid == authProvider.curUserModel?.uid,
                     userModel: userModel,
                     text: translatedText,
                     date: formattedDate,
@@ -227,7 +243,7 @@ class _AudiencePageState extends State<DialoguePage> {
         ),
         onPressed: () async {
           try {
-            if (_authProvider.curUserModel == null) {
+            if (authProvider.curUserModel == null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("오류: 로그인 상태가 아닙니다. 로그인 후 시도해주세요.")),
               );
@@ -250,7 +266,7 @@ class _AudiencePageState extends State<DialoguePage> {
             }
 
             await widget.chatRoom.addDialogue(
-              _authProvider.curUserModel!.uid,
+              authProvider.curUserModel!.uid,
               curLangItem!.sttLangCode!,
               resultStr,
             );
