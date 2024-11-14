@@ -46,7 +46,7 @@ class LanguageSelectControl with ChangeNotifier{
     return _instance!;
   }
 
-  late TranslateLanguage initialMyTranslateLanguage = TranslateLanguage.chinese;
+  late TranslateLanguage initialMyTranslateLanguage = TranslateLanguage.english;
 
   late LanguageItem _myLanguageItem = findLanguageItemByTranslateLanguage(initialMyTranslateLanguage);
   LanguageItem get myLanguageItem{

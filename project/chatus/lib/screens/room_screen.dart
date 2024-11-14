@@ -124,58 +124,10 @@ class _RoomScreenState extends State<RoomScreen> {
           : Column(
             children: [
               Expanded(child: DialoguePage(chatRoom: widget.chatRoomToLoad)),
-              SizedBox(
-                  height : 100 , child: languageSelectScreenBtn())
             ],
           ),
     );
   }
-
-
-  Widget languageSelectScreenBtn() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: InkWell(
-        onTap: () async {
-          late LanguageSelectScreen myLanguageSelectScreen =
-          LanguageSelectScreen(
-            languageSelectControl: LanguageSelectControl.instance,
-          );
-          await showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return Dialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                ),
-                child: Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: myLanguageSelectScreen,
-                ),
-              );
-            },
-          );
-          setState(() {
-
-          });
-        },
-        child: SizedBox(
-          height: 60,
-          child: Column(
-            children: [
-              Text("   ${ LanguageSelectControl.instance.myLanguageItem.menuDisplayStr}"),
-              SizedBox(height: 8,),
-              Text( "   언어 변경하기   ", textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget volumeSlider(String title, ValueNotifier<double> volumeNotifier) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
