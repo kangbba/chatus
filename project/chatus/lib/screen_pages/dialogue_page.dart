@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:chatus/classes/room_settings.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
@@ -45,7 +46,49 @@ class _AudiencePageState extends State<DialoguePage> {
     googleTranslator.initializeTranslateByGoogleServer();
     initializeLanguages();
     initializeDialogues(languageSelectControl.myLanguageItem);
+    _scrollController.addListener(_scrollListener);
   }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _dialogueSubscription?.cancel();
+    _languageSubscription?.cancel();
+    _scrollController.removeListener(_scrollListener);
+    super.dispose();
+  }
+
+  // 스크롤 리스너에서 maxScrollExtent의 변화를 감지하고 scrollToEnd 호출
+  void _scrollListener() {
+    debugPrint('Scroll position: ${_scrollController.position.pixels}');
+    debugPrint('extentAfter: ${ _scrollController.position.extentAfter}');
+    debugPrint('Max Scroll extent: ${_scrollController.position.maxScrollExtent}');
+    debugPrint('Scroll direction: ${_scrollController.position.userScrollDirection}');
+  }
+
+  void scrollToEnd() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  // void scrollToEnd() {
+  //   if (_scrollController.hasClients) {
+  //     SchedulerBinding.instance.addPostFrameCallback((_) {
+  //       _scrollController.animateTo(_scrollController.position.maxScrollExtent);
+  //     });
+  //   }
+  // }
+
+
+
+
+
+
 
   // Languages
   Future<void> initializeLanguages() async {
@@ -82,7 +125,6 @@ class _AudiencePageState extends State<DialoguePage> {
       await translateAllDialogues(initialLanguageItem?.langCodeGoogleServer);
       listenToDialogueStream();
       setState(() {});
-
     } catch (e) {
       debugPrint("AudiencePage: Error loading initial dialogues - $e");
     }
@@ -91,32 +133,28 @@ class _AudiencePageState extends State<DialoguePage> {
   void listenToDialogueStream() {
     _dialogueSubscription = widget.chatRoom.dialoguesStream().listen(
           (dialogueList) async {
-            // 새로운 대화만 추려내기 위해 기존 대화 ID 목록을 수집
-            final currentIds = dialogues.map((d) => d.id).toSet();
-            // 새로 추가된 대화만 필터링하여 번역
-            final newDialogues = dialogueList.where((d) => !currentIds.contains(d.id)).toList();
+        final currentIds = dialogues.map((d) => d.id).toSet();
+        final newDialogues = dialogueList.where((d) => !currentIds.contains(d.id)).toList();
 
-            if (newDialogues.isNotEmpty) {
-              String? curLangCode = curLangItem?.langCodeGoogleServer;
-              sortDialoguesByCreatedAt(newDialogues);
-              dialogues.addAll(newDialogues);
-              debugPrint("AudiencePage: New dialogues received, count: ${newDialogues.length}");
+        if (newDialogues.isNotEmpty) {
+          String? curLangCode = curLangItem?.langCodeGoogleServer;
+          sortDialoguesByCreatedAt(newDialogues);
+          dialogues.addAll(newDialogues);
+          debugPrint("AudiencePage: New dialogues received, count: ${newDialogues.length}");
 
-
-              debugPrint("Translation request count: ${newDialogues.length}");
-              String lastTranslation = '';
-              for (var dialogue in newDialogues) {
-                lastTranslation = await translateDialogue(dialogue, curLangCode!);
-              }
-              setState(() {});
-
-              if(lastTranslation.isNotEmpty){
-                debugPrint("tts to speak : ${lastTranslation}");
-                bool isMyDialogue = newDialogues.last.ownerUid == authProvider.curUserModel?.uid;
-                await tts.setVolume(isMyDialogue ? RoomSettings().myVolume : RoomSettings().otherVolume);
-                tts.speak(lastTranslation);
-              }
-            }
+          debugPrint("Translation request count: ${newDialogues.length}");
+          String lastTranslation = '';
+          for (var dialogue in newDialogues) {
+            lastTranslation = await translateDialogue(dialogue, curLangCode!);
+          }
+          if (lastTranslation.isNotEmpty) {
+            debugPrint("tts to speak : ${lastTranslation}");
+            bool isMyDialogue = newDialogues.last.ownerUid == authProvider.curUserModel?.uid;
+            await tts.setVolume(isMyDialogue ? RoomSettings().myVolume : RoomSettings().otherVolume);
+            tts.speak(lastTranslation);
+          }
+          scrollToEnd();
+        }
       },
       onError: (error) {
         debugPrint("AudiencePage: Error in dialogue stream - $error");
@@ -131,7 +169,6 @@ class _AudiencePageState extends State<DialoguePage> {
   Future<String> translateDialogue(Dialogue dialogue, String targetLangCode) async {
     final translatedData = translatedDialogues[dialogue.id];
 
-    // 이미 해당 언어로 번역이 되어 있는 경우 스킵
     if (translatedData != null && translatedData['langCode'] == targetLangCode) {
       return dialogue.content;
     }
@@ -143,12 +180,11 @@ class _AudiencePageState extends State<DialoguePage> {
         'langCode': targetLangCode
       };
       return translation ?? '';
-
     } catch (e) {
       debugPrint("Translation error for '${dialogue.content}': $e");
       translatedDialogues[dialogue.id] = {
         'text': dialogue.content,
-        'langCode': dialogue.langCode // 번역 실패 시 원본 유지
+        'langCode': dialogue.langCode
       };
 
       return dialogue.content;
@@ -166,61 +202,59 @@ class _AudiencePageState extends State<DialoguePage> {
   }
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    _dialogueSubscription?.cancel();
-    _languageSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Column(
-      children: [
-        Expanded(
-          child: dialogues.isEmpty
-              ? const Center(child: Text('발표 내용이 없습니다'))
-              : ListView.builder(
-            controller: _scrollController,
-            itemCount: dialogues.length,
-            itemBuilder: (context, index) {
-              final dialogue = dialogues[index];
-              final translatedData = translatedDialogues[dialogue.id];
-              final translatedText = translatedData?['text'] ?? dialogue.content;
-              final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dialogue.createdAt);
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: scrollToEnd,
+        child: const Icon(Icons.arrow_downward),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: dialogues.isEmpty
+                ? const Center(child: Text('대화 내역이 없습니다'))
+                : ListView.builder(
+              controller: _scrollController,
+              itemCount: dialogues.length,
+              itemBuilder: (context, index) {
+                final dialogue = dialogues[index];
+                final translatedData = translatedDialogues[dialogue.id];
+                final translatedText = translatedData?['text'] ?? dialogue.content;
+                final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dialogue.createdAt);
 
-              return FutureBuilder<UserModel?>(
-                future: widget.chatRoom.getUserByUid(dialogue.ownerUid),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SizedBox.shrink();
-                  }
+                return FutureBuilder<UserModel?>(
+                  future: widget.chatRoom.getUserByUid(dialogue.ownerUid),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SizedBox(height: 100,);
+                    }
 
-                  if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-                    return const Center(child: Text('사용자 정보를 불러올 수 없습니다.'));
-                  }
+                    if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
+                      return SizedBox(height: 100,);
+                    }
 
-                  final userModel = snapshot.data!;
-                  return DialogueTile(
-                    isMine: dialogue.ownerUid == authProvider.curUserModel?.uid,
-                    userModel: userModel,
-                    text: translatedText,
-                    date: formattedDate,
-                  );
-                },
-              );
-            },
+                    final userModel = snapshot.data!;
+                    return DialogueTile(
+                      isMine: dialogue.ownerUid == authProvider.curUserModel?.uid,
+                      userModel: userModel,
+                      text: translatedText,
+                      date: formattedDate,
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-        SizedBox(
-          height: 70,
-          child: _audioRecordBtn(),
-        ),
-      ],
+          SizedBox(
+            height: 70,
+            child: _audioRecordBtn(),
+          ),
+        ],
+      ),
     );
   }
 

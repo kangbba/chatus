@@ -23,6 +23,7 @@ class RoomScreen extends StatefulWidget {
 
 class _RoomScreenState extends State<RoomScreen> {
   ChatRoom? chatRoom;
+  bool isEntered = false;
   final MyAuthProvider authProvider = MyAuthProvider.instance;
   StreamSubscription<List<UserModel>>? _userModelsSubscription;
   List<UserModel> userModels = [];
@@ -45,8 +46,9 @@ class _RoomScreenState extends State<RoomScreen> {
     if (userModel != null) {
       final isJoined = await widget.chatRoomToLoad.joinRoom(userModel);
       if (isJoined) {
+        chatRoom = widget.chatRoomToLoad;
+        isEntered = true;
         setState(() {
-          chatRoom = widget.chatRoomToLoad;
         });
       } else {
         Navigator.pop(context);
@@ -64,7 +66,7 @@ class _RoomScreenState extends State<RoomScreen> {
       // 조건에 따라 로그 출력
       final myUid = authProvider.curUserModel?.uid;
 
-      if (updatedUserModels.isEmpty) {
+      if (updatedUserModels.isEmpty && isEntered) {
         debugPrint("Log: userModels count is 0.");
         Navigator.of(context).pop();
       }
