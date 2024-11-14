@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chatus/classes/room_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:intl/intl.dart';
@@ -100,11 +101,19 @@ class _AudiencePageState extends State<DialoguePage> {
               sortDialoguesByCreatedAt(newDialogues);
               dialogues.addAll(newDialogues);
               debugPrint("AudiencePage: New dialogues received, count: ${newDialogues.length}");
-              String lastTranslation = await translateNewDialogues(newDialogues, curLangCode);
+
+
+              debugPrint("Translation request count: ${newDialogues.length}");
+              String lastTranslation = '';
+              for (var dialogue in newDialogues) {
+                lastTranslation = await translateDialogue(dialogue, curLangCode!);
+              }
               setState(() {});
 
               if(lastTranslation.isNotEmpty){
                 debugPrint("tts to speak : ${lastTranslation}");
+                bool isMyDialogue = newDialogues.last.ownerUid == authProvider.curUserModel?.uid;
+                await tts.setVolume(isMyDialogue ? RoomSettings().myVolume : RoomSettings().otherVolume);
                 tts.speak(lastTranslation);
               }
             }
@@ -144,18 +153,6 @@ class _AudiencePageState extends State<DialoguePage> {
 
       return dialogue.content;
     }
-  }
-
-  // 새로 추가된 대화만 번역 수행
-  Future<String> translateNewDialogues(List<Dialogue> newDialogues, String? targetLangCode) async {
-    if (targetLangCode == null) return '';
-
-    debugPrint("Translation request count: ${newDialogues.length}");
-    String lastTranslation = '';
-    for (var dialogue in newDialogues) {
-      lastTranslation = await translateDialogue(dialogue, targetLangCode);
-    }
-    return lastTranslation;
   }
 
   // 전체 대화 번역 수행

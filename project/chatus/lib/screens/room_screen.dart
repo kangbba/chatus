@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:chatus/custom_widget/room_drawer.dart';
 import 'package:chatus/screen_pages/dialogue_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import '../classes/language_select_control.dart';
 import '../classes/user_model.dart';
 import '../classes/room_settings.dart';
 import '../custom_widget/sayne_separator.dart';
+import '../custom_widget/user_list.dart';
 import '../managers/my_auth_provider.dart';
 import 'language_select_screen.dart';
 
@@ -24,9 +26,11 @@ class _RoomScreenState extends State<RoomScreen> {
   final MyAuthProvider authProvider = MyAuthProvider.instance;
   StreamSubscription<List<UserModel>>? _userModelsSubscription;
   List<UserModel> userModels = [];
-  double myVolume = RoomSettings().myVolume;
-  double otherVolume = RoomSettings().otherVolume;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final ValueNotifier<double> myVolumeNotifier = ValueNotifier(RoomSettings().myVolume);
+  final ValueNotifier<double> otherVolumeNotifier = ValueNotifier(RoomSettings().otherVolume);
+
 
   @override
   void initState() {
@@ -56,6 +60,18 @@ class _RoomScreenState extends State<RoomScreen> {
       setState(() {
         userModels = updatedUserModels;
       });
+
+      // 조건에 따라 로그 출력
+      final myUid = authProvider.curUserModel?.uid;
+
+      if (updatedUserModels.isEmpty) {
+        debugPrint("Log: userModels count is 0.");
+        Navigator.of(context).pop();
+      }
+      // else if (myUid != null && !updatedUserModels.any((user) => user.uid == myUid)) {
+      //   debugPrint("Log: Current user is not in the userModels list.");
+      //   Navigator.of(context).pop();
+      // }
     });
   }
 
@@ -73,17 +89,17 @@ class _RoomScreenState extends State<RoomScreen> {
     }
   }
 
-  // Drawer가 닫힐 때 RoomSettings에 볼륨 값을 저장
   void saveVolumeSettings() {
-    RoomSettings().myVolume = myVolume;
-    RoomSettings().otherVolume = otherVolume;
+    RoomSettings().myVolume = myVolumeNotifier.value;
+    RoomSettings().otherVolume = otherVolumeNotifier.value;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key : _scaffoldKey,
+      key: _scaffoldKey,
       appBar: AppBar(
+        backgroundColor: Colors.white12,
         title: StreamBuilder<List<UserModel>>(
           stream: chatRoom?.userModelsStream,
           builder: (context, snapshot) {
@@ -92,17 +108,15 @@ class _RoomScreenState extends State<RoomScreen> {
           },
         ),
         actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: Icon(Icons.menu),
-              onPressed: () {
-                Scaffold.of(context).openEndDrawer();
-              },
-            ),
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              _scaffoldKey.currentState?.openEndDrawer();
+            },
           ),
         ],
       ),
-      endDrawer: roomDrawer(),
+      endDrawer: RoomDrawer(chatRoom: widget.chatRoomToLoad),
       body: chatRoom == null
           ? Center(child: CircularProgressIndicator())
           : Column(
@@ -115,71 +129,6 @@ class _RoomScreenState extends State<RoomScreen> {
     );
   }
 
-  // Drawer 위젯 생성
-  Widget roomDrawer() {
-    return SafeArea(
-      child: Drawer(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(chatRoom?.name ?? '', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-                const SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 8),
-                // 멤버 표시 영역
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(children: [
-                    Icon(Icons.people, color: Colors.black45),
-                    SizedBox(width: 8),
-                    Text("참여자 목록", style: TextStyle(fontSize: 16)),
-                  ]),
-                ),
-                SizedBox(height: 10),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: userModels.length,
-                    itemBuilder: (context, index) {
-                      final user = userModels[index];
-                      return ListTile(
-                        leading: Icon(Icons.person),
-                        title: Text(user.displayName ?? "Unknown"),
-                      );
-                    },
-                  ),
-                ),
-                const SimpleSeparator(color: Colors.black54, height: 0.3, top: 8, bottom: 8),
-                // 슬라이더
-                volumeSlider("나의 소리 볼륨", myVolume, (value) {
-                  setState(() {
-                    myVolume = value;
-                  });
-                }),
-                volumeSlider("상대 소리 볼륨", otherVolume, (value) {
-                  setState(() {
-                    otherVolume = value;
-                  });
-                }),
-              ],
-            ),
-            // 나가기 버튼
-            ListTile(
-              tileColor: Colors.black12,
-              leading: Icon(Icons.exit_to_app),
-              title: Text("Exit Room"),
-              onTap: () {
-                saveVolumeSettings();
-                exitRoom();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget languageSelectScreenBtn() {
     return Align(
@@ -224,19 +173,26 @@ class _RoomScreenState extends State<RoomScreen> {
       ),
     );
   }
-  // 슬라이더 생성 함수
-  Widget volumeSlider(String title, double currentValue, ValueChanged<double> onChanged) {
+
+  Widget volumeSlider(String title, ValueNotifier<double> volumeNotifier) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: TextStyle(fontSize: 14)),
-          Slider(
-            value: currentValue,
-            min: 0.0,
-            max: 1.0,
-            onChanged: onChanged,
+          ValueListenableBuilder<double>(
+            valueListenable: volumeNotifier,
+            builder: (context, currentValue, child) {
+              return Slider(
+                value: currentValue,
+                min: 0.0,
+                max: 1.0,
+                onChanged: (value) {
+                  volumeNotifier.value = value;
+                },
+              );
+            },
           ),
         ],
       ),

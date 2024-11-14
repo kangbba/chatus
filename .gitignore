@@ -26,3 +26,4 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 /project/chatus/lib/secrets
+project/chatus/android/app/google-services.json
